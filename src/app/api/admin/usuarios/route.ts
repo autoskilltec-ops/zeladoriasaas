@@ -14,7 +14,9 @@ export async function POST(req: NextRequest) {
   if (!nome?.trim() || !email?.trim() || !senha || !role) {
     return err("Campos obrigatórios ausentes", 400)
   }
-  if (senha.length < 6) return err("Senha mínima: 6 caracteres", 400)
+  if (senha.length < 8 || !/[a-zA-Z]/.test(senha) || !/[0-9]/.test(senha)) {
+    return err("Senha deve ter ao menos 8 caracteres com letras e números", 400)
+  }
   if (!["admin", "gestor", "inspetor", "zelador"].includes(role)) {
     return err("Perfil inválido", 400)
   }
