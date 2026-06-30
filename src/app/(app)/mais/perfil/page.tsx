@@ -72,12 +72,17 @@ export default function PerfilPage() {
     else setNomeOk(true)
   }
 
+  const passHasLetter = /[a-zA-Z]/.test(senha)
+  const passHasNumber = /[0-9]/.test(senha)
+  const passStrong    = senha.length >= 8 && passHasLetter && passHasNumber
+
   async function handleSaveSenha(e: React.FormEvent) {
     e.preventDefault()
     setSenhaErr(null)
     setSenhaOk(false)
 
     if (senha.length < 8) { setSenhaErr("Mínimo 8 caracteres"); return }
+    if (!passHasLetter || !passHasNumber) { setSenhaErr("Deve conter letras e números"); return }
     if (senha !== confirmar) { setSenhaErr("As senhas não coincidem"); return }
 
     setSavingP(true)
@@ -175,6 +180,11 @@ export default function PerfilPage() {
                   {showP ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {senha.length > 0 && !passStrong && (
+                <p className="mt-1 text-[11px] text-[#f97316]">
+                  {senha.length < 8 ? "Mínimo 8 caracteres" : "Deve conter letras e números"}
+                </p>
+              )}
             </div>
             <div>
               <label className="field-label" htmlFor="confirmar-senha">Confirmar nova senha</label>
@@ -199,7 +209,7 @@ export default function PerfilPage() {
 
           <button
             type="submit"
-            disabled={savingP || senha.length === 0}
+            disabled={savingP || !passStrong}
             className="btn-primary"
           >
             {savingP ? "Salvando…" : "Atualizar senha"}

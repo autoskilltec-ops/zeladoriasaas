@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { getAuthUser, ok, err, isUUID } from "@/lib/api/auth"
+import { sanitizeText } from "@/lib/utils/sanitize"
 
 const schema = z.object({
   inspecao_id:       z.string().uuid(),
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   const { data: episInspecao, error: upsertError } = await supabase
     .from("epis_inspecao")
     .upsert(
-      { inspecao_id, status_geral, equipamentos_bons, observacoes: observacoes ?? "" },
+      { inspecao_id, status_geral, equipamentos_bons, observacoes: sanitizeText(observacoes ?? "") },
       { onConflict: "inspecao_id" },
     )
     .select("id")

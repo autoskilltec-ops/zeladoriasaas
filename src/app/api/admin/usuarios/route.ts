@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
-import { createClient as createAdminClient } from "@supabase/supabase-js"
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { auditLog } from "@/lib/audit"
 
 export async function POST(req: NextRequest) {
   const { user, profile, error: authErr } = await getAuthUser()
@@ -51,6 +46,15 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
     return err("Erro ao salvar usuário: " + dbError.message, 500)
   }
+
+  await auditLog({
+    user_id:        profile.id,
+    organizacao_id: profile.organizacao_id,
+    action:         "usuario.criar",
+    resource_id:    authData.user.id,
+    request:        req,
+    metadata:       { email: email.trim(), role },
+  })
 
   return NextResponse.json(ok({ usuario }), { status: 201 })
 }

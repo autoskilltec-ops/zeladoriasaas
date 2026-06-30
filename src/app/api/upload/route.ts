@@ -6,6 +6,23 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024  // 5 MB
 const BUCKET         = "inspecoes-fotos"
 const TIPOS_VALIDOS  = ["situacao", "corretiva", "final"] as const
 
+// ─── Magic bytes ──────────────────────────────────────────────────────────────
+// Valida o conteúdo real do arquivo, não apenas o MIME declarado pelo cliente.
+function validateMagicBytes(bytes: Uint8Array, mimeType: string): boolean {
+  const b = bytes
+
+  const isJpeg = b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF
+  const isPng  = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47
+  // WebP: bytes 0-3 = "RIFF", bytes 8-11 = "WEBP"
+  const isWebp = b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46
+               && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50
+
+  if (mimeType === "image/jpeg") return isJpeg
+  if (mimeType === "image/png")  return isPng
+  if (mimeType === "image/webp") return isWebp
+  return false
+}
+
 export async function POST(request: NextRequest) {
   const { profile, supabase, unauthorized } = await getAuthUser()
   if (unauthorized || !profile) return err("Sessão inválida", 401, "UNAUTHORIZED")
@@ -29,15 +46,24 @@ export async function POST(request: NextRequest) {
     return err("Tipo inválido. Use: situacao, corretiva ou final", 400)
   }
 
+  // 1. Validação de MIME type declarado
   if (!ALLOWED_TYPES.includes(file.type)) {
     return err("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.", 400, "INVALID_TYPE")
   }
 
+  // 2. Validação de tamanho
   if (file.size > MAX_SIZE_BYTES) {
     return err("Arquivo muito grande. Máximo 5 MB.", 400, "FILE_TOO_LARGE")
   }
 
-  // Verifica que a inspeção pertence ao usuário e não está finalizada
+  // 3. Lê os bytes e valida magic bytes (conteúdo real do arquivo)
+  const buffer = new Uint8Array(await file.arrayBuffer())
+
+  if (!validateMagicBytes(buffer, file.type)) {
+    return err("Conteúdo do arquivo não corresponde ao tipo declarado.", 400, "INVALID_FILE_CONTENT")
+  }
+
+  // 4. Verifica que a inspeção pertence ao usuário e está em andamento
   const { data: inspecao } = await supabase
     .from("inspecoes")
     .select("id, status, organizacao_id")
@@ -48,10 +74,11 @@ export async function POST(request: NextRequest) {
   if (!inspecao) return err("Inspeção não encontrada", 404, "NOT_FOUND")
   if (inspecao.status === "finalizada") return err("Inspeção já finalizada", 409)
 
-  const ext       = file.type === "image/png" ? "png" : "jpg"
-  const path      = `${profile.organizacao_id}/${inspecaoId}/${tipo}-${Date.now()}.${ext}`
-  const buffer    = new Uint8Array(await file.arrayBuffer())
+  // 5. Path seguro gerado no servidor (nunca pelo cliente)
+  const ext  = file.type === "image/png" ? "png" : "jpg"
+  const path = `${profile.organizacao_id}/${inspecaoId}/${tipo}-${Date.now()}.${ext}`
 
+  // 6. Upload para bucket privado
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, buffer, { contentType: file.type, upsert: true })
@@ -60,9 +87,7 @@ export async function POST(request: NextRequest) {
     return err("Erro ao enviar foto: " + uploadError.message, 500, "STORAGE_ERROR")
   }
 
-  const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path)
-
-  // Atualiza o campo correspondente na tabela inspecoes
+  // 7. Persiste o PATH (não a URL) — URL é gerada sob demanda via signed URL
   const fotoField = `foto_${tipo}_url` as
     | "foto_situacao_url"
     | "foto_corretiva_url"
@@ -70,8 +95,13 @@ export async function POST(request: NextRequest) {
 
   await supabase
     .from("inspecoes")
-    .update({ [fotoField]: publicUrl })
+    .update({ [fotoField]: path })
     .eq("id", inspecaoId)
 
-  return ok({ url: publicUrl, path, tipo })
+  // 8. Signed URL de curta duração para exibição imediata (1 hora)
+  const { data: signedData } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, 3600)
+
+  return ok({ url: signedData?.signedUrl ?? null, path, tipo })
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
+import { sanitizeText } from "@/lib/utils/sanitize"
 
 const schema = z.object({
   inspecao_id:     z.string().uuid(),
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
         inspecao_id,
         zelador_id:     inspecao.zelador_id,
         nivel,
-        descricao:      descricao ?? "",
+        descricao:      sanitizeText(descricao ?? ""),
         publicado_mural: publicado_mural ?? true,
       },
       { onConflict: "inspecao_id" },

@@ -55,11 +55,15 @@ export default function CadastroPage() {
     router.refresh()
   }
 
+  const passHasLetter = /[a-zA-Z]/.test(password)
+  const passHasNumber = /[0-9]/.test(password)
+  const passStrong    = password.length >= 8 && passHasLetter && passHasNumber
+
   const canSubmit =
     orgNome.trim().length >= 2 &&
     usuarioNome.trim().length >= 2 &&
     email.trim().length > 0 &&
-    password.length >= 8
+    passStrong
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f2f4f3] px-4 py-8">
@@ -161,8 +165,14 @@ export default function CadastroPage() {
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                {password.length > 0 && password.length < 8 && (
-                  <p className="mt-1 text-[11px] text-[#f97316]">Mínimo 8 caracteres</p>
+                {password.length > 0 && (
+                  <p className="mt-1 text-[11px] text-[#f97316]">
+                    {password.length < 8
+                      ? "Mínimo 8 caracteres"
+                      : !passHasLetter || !passHasNumber
+                        ? "Deve conter letras e números"
+                        : null}
+                  </p>
                 )}
               </div>
 

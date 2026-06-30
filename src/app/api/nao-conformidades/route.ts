@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
+import { sanitizeText } from "@/lib/utils/sanitize"
+import { auditLog } from "@/lib/audit"
 
 const ncSchema = z.object({
   tipo:           z.enum(["seguranca", "limpeza", "epi", "estrutural", "outro"]),
@@ -42,9 +44,9 @@ export async function POST(request: NextRequest) {
     inspecao_id,
     organizacao_id: profile.organizacao_id,
     tipo:           nc.tipo,
-    descricao:      nc.descricao,
+    descricao:      sanitizeText(nc.descricao),
     criticidade:    nc.criticidade,
-    acao_corretiva: nc.acao_corretiva,
+    acao_corretiva: sanitizeText(nc.acao_corretiva),
     prazo_correcao: nc.prazo_correcao,
     responsavel_id: nc.responsavel_id,
     status:         "aberta" as const,
@@ -56,6 +58,24 @@ export async function POST(request: NextRequest) {
     .select("id, tipo, criticidade, prazo_correcao")
 
   if (error) return err("Erro ao salvar não conformidades: " + error.message, 500, "DB_ERROR")
+
+  // Audit apenas se houver NC crítica ou alta
+  const temCritica = parsed.data.nao_conformidades.some(
+    (nc) => nc.criticidade === "critico" || nc.criticidade === "alto",
+  )
+  if (temCritica) {
+    await auditLog({
+      user_id:        profile.id,
+      organizacao_id: profile.organizacao_id,
+      action:         "nc.criar",
+      resource_id:    inspecao_id,
+      request,
+      metadata:       {
+        total:    inserted?.length ?? 0,
+        criticas: parsed.data.nao_conformidades.filter((nc) => nc.criticidade === "critico").length,
+      },
+    })
+  }
 
   return ok({ inspecao_id, nao_conformidades: inserted, total: inserted?.length ?? 0 }, 201)
 }

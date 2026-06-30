@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
+import { sanitizeText } from "@/lib/utils/sanitize"
+import { auditLog } from "@/lib/audit"
 
 const createSchema = z.object({
   local_id:           z.string().uuid("local_id inválido"),
@@ -29,7 +31,8 @@ export async function POST(request: NextRequest) {
     return err(message, 400, "VALIDATION_ERROR")
   }
 
-  const { local_id, zelador_id, data_inspecao, descricao_visita, limpeza_programada } = parsed.data
+  const { local_id, zelador_id, data_inspecao, limpeza_programada } = parsed.data
+  const descricao_visita = sanitizeText(parsed.data.descricao_visita ?? "")
 
   // Verifica que o local pertence à organização do usuário
   const { data: local } = await supabase
@@ -61,6 +64,15 @@ export async function POST(request: NextRequest) {
   if (insertError) {
     return err("Erro ao criar inspeção: " + insertError.message, 500, "DB_ERROR")
   }
+
+  await auditLog({
+    user_id:        profile.id,
+    organizacao_id: profile.organizacao_id,
+    action:         "inspecao.criar",
+    resource_id:    inspecao.id,
+    request,
+    metadata:       { local_id, data_inspecao },
+  })
 
   return ok({ inspecao_id: inspecao.id }, 201)
 }

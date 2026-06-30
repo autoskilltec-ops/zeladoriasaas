@@ -2,12 +2,23 @@ import { NextRequest } from "next/server"
 import { z } from "zod"
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { sanitizeShort } from "@/lib/utils/sanitize"
+import { auditLog } from "@/lib/audit"
+
+// Senha forte: mínimo 8 chars, ao menos 1 letra e 1 número
+const strongPassword = z
+  .string()
+  .min(8, "Senha deve ter ao menos 8 caracteres")
+  .refine(
+    (p) => /[a-zA-Z]/.test(p) && /[0-9]/.test(p),
+    "Senha deve conter letras e números",
+  )
 
 const schema = z.object({
-  org_nome:      z.string().min(2, "Nome da organização muito curto").max(100),
-  usuario_nome:  z.string().min(2, "Nome muito curto").max(100),
-  email:         z.string().email("E-mail inválido"),
-  password:      z.string().min(8, "Senha deve ter ao menos 8 caracteres"),
+  org_nome:     z.string().min(2, "Nome da organização muito curto").max(100),
+  usuario_nome: z.string().min(2, "Nome muito curto").max(100),
+  email:        z.string().email("E-mail inválido"),
+  password:     strongPassword,
 })
 
 function slugify(text: string): string {
@@ -32,8 +43,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: { code: "VALIDATION", message } }, { status: 400 })
   }
 
-  const { org_nome, usuario_nome, email, password } = parsed.data
-  const slug = slugify(org_nome)
+  const { email, password } = parsed.data
+  const org_nome     = sanitizeShort(parsed.data.org_nome)
+  const usuario_nome = sanitizeShort(parsed.data.usuario_nome)
+  const slug         = slugify(org_nome)
+
+  // Verifica duplicidade de e-mail antes de criar a org (evita rollback desnecessário)
+  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+  const emailExists = existingUsers?.users.some(
+    (u) => u.email?.toLowerCase() === email.toLowerCase(),
+  )
+  if (emailExists) {
+    return NextResponse.json(
+      { data: null, error: { code: "EMAIL_EXISTS", message: "E-mail já cadastrado" } },
+      { status: 409 },
+    )
+  }
 
   // 1. Cria a organização
   const { data: org, error: orgError } = await supabaseAdmin
@@ -54,20 +79,18 @@ export async function POST(request: NextRequest) {
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true,      // confirma automaticamente (sem email)
+    email_confirm: true,
   })
 
   if (authError || !authUser?.user) {
-    // Rollback: remove a organização
     await supabaseAdmin.from("organizacoes").delete().eq("id", org.id)
-    const isDuplicate = authError?.message?.includes("already registered")
     return NextResponse.json(
-      { data: null, error: { code: "AUTH_ERROR", message: isDuplicate ? "E-mail já cadastrado" : (authError?.message ?? "Erro ao criar usuário") } },
-      { status: isDuplicate ? 409 : 500 },
+      { data: null, error: { code: "AUTH_ERROR", message: authError?.message ?? "Erro ao criar usuário" } },
+      { status: 500 },
     )
   }
 
-  // 3. Cria o perfil na tabela usuarios como admin
+  // 3. Cria o perfil como admin
   const { error: userError } = await supabaseAdmin
     .from("usuarios")
     .insert({
@@ -79,7 +102,6 @@ export async function POST(request: NextRequest) {
     })
 
   if (userError) {
-    // Rollback
     await supabaseAdmin.auth.admin.deleteUser(authUser.user.id)
     await supabaseAdmin.from("organizacoes").delete().eq("id", org.id)
     return NextResponse.json(
@@ -87,6 +109,16 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
+
+  // Audit
+  await auditLog({
+    user_id:        authUser.user.id,
+    organizacao_id: org.id,
+    action:         "org.criar",
+    resource_id:    org.id,
+    request,
+    metadata:       { org_nome, email },
+  })
 
   return NextResponse.json(
     { data: { organizacao_id: org.id, usuario_id: authUser.user.id }, error: null },

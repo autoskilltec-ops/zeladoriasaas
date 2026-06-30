@@ -1,6 +1,36 @@
 import { NextRequest } from "next/server"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
 
+const BUCKET          = "inspecoes-fotos"
+const SIGNED_URL_TTL  = 3600 // 1 hora
+
+const FOTO_FIELDS = [
+  "foto_situacao_url",
+  "foto_corretiva_url",
+  "foto_final_url",
+] as const
+
+/** Converte paths do Storage em signed URLs. Se o valor já for uma URL http, mantém. */
+async function resolvePhotoUrls(
+  data: Record<string, unknown>,
+  supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>,
+): Promise<Record<string, unknown>> {
+  const result = { ...data }
+
+  for (const field of FOTO_FIELDS) {
+    const value = result[field]
+    if (typeof value !== "string" || value.startsWith("http")) continue
+
+    const { data: signed } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(value, SIGNED_URL_TTL)
+
+    result[field] = signed?.signedUrl ?? null
+  }
+
+  return result
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -28,5 +58,8 @@ export async function GET(
 
   if (error || !data) return err("Inspeção não encontrada", 404, "NOT_FOUND")
 
-  return ok(data)
+  // Converte paths de foto em signed URLs antes de retornar
+  const resolved = await resolvePhotoUrls(data as Record<string, unknown>, supabase)
+
+  return ok(resolved)
 }

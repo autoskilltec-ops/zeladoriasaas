@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { getAuthUser, ok, err } from "@/lib/api/auth"
+import { sanitizeText } from "@/lib/utils/sanitize"
 
 const patchSchema = z.object({
   status:                 z.enum(["em_andamento", "resolvida", "cancelada"]),
@@ -39,7 +40,7 @@ export async function PATCH(
   if (!canUpdate) return err("Sem permissão", 403, "FORBIDDEN")
 
   const updateData: Record<string, unknown> = { status }
-  if (resolucao_descricao) updateData.resolucao_descricao = resolucao_descricao
+  if (resolucao_descricao) updateData.resolucao_descricao = sanitizeText(resolucao_descricao)
   if (status === "resolvida") {
     updateData.resolvida_em  = new Date().toISOString()
     updateData.resolvida_por = profile.id
