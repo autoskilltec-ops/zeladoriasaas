@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
 // ─── Rotas públicas ───────────────────────────────────────────────────────────
-const PUBLIC_PATHS = ["/login", "/cadastro", "/recuperar-senha", "/atualizar-senha"]
+const PUBLIC_PATHS = ["/login", "/cadastro", "/api/cadastro", "/recuperar-senha", "/api/recuperar-senha", "/atualizar-senha"]
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
