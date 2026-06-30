@@ -120,7 +120,13 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user: { id: string } | null = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch {
+    // Falha de rede ou env var ausente — trata como não autenticado
+  }
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
 
