@@ -3,8 +3,8 @@ import { getAuthUser, ok, err } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(req: NextRequest) {
-  const { user, profile, error: authErr } = await getAuthUser()
-  if (authErr || !user || !profile) return err("Não autorizado", 401)
+  const { profile, unauthorized } = await getAuthUser()
+  if (unauthorized || !profile) return err("Não autorizado", 401)
   if (!["admin", "gestor"].includes(profile.role)) return err("Sem permissão", 403)
 
   const sp    = req.nextUrl.searchParams
@@ -40,5 +40,5 @@ export async function GET(req: NextRequest) {
     inspetor_nome: i.usuarios?.nome ?? "—",
   }))
 
-  return Response.json(ok({ inspecoes }))
+  return ok({ inspecoes })
 }
