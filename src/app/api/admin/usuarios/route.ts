@@ -4,8 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 import { auditLog } from "@/lib/audit"
 
 export async function POST(req: NextRequest) {
-  const { user, profile, error: authErr } = await getAuthUser()
-  if (authErr || !user || !profile) return err("Não autorizado", 401)
+  const { profile, unauthorized } = await getAuthUser()
+  if (unauthorized || !profile) return err("Não autorizado", 401)
   if (!["admin", "gestor"].includes(profile.role)) return err("Sem permissão", 403)
 
   const body = await req.json()
@@ -56,5 +56,5 @@ export async function POST(req: NextRequest) {
     metadata:       { email: email.trim(), role },
   })
 
-  return NextResponse.json(ok({ usuario }), { status: 201 })
+  return ok({ usuario }, 201)
 }
