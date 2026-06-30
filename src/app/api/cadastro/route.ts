@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    const message = parsed.error.errors[0]?.message ?? "Dados inválidos"
+    const message = parsed.error.issues[0]?.message ?? "Dados inválidos"
     return NextResponse.json({ data: null, error: { code: "VALIDATION", message } }, { status: 400 })
   }
 

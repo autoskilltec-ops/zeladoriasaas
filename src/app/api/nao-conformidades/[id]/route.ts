@@ -20,7 +20,7 @@ export async function PATCH(
   try { body = await request.json() } catch { return err("JSON inválido", 400) }
 
   const parsed = patchSchema.safeParse(body)
-  if (!parsed.success) return err(parsed.error.errors[0]?.message ?? "Dados inválidos", 400)
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "Dados inválidos", 400)
 
   const { status, resolucao_descricao } = parsed.data
 

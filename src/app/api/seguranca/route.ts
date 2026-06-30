@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try { body = await request.json() } catch { return err("JSON inválido", 400) }
 
   const parsed = schema.safeParse(body)
-  if (!parsed.success) return err(parsed.error.errors[0]?.message ?? "Dados inválidos", 400)
+  if (!parsed.success) return err(parsed.error.issues[0]?.message ?? "Dados inválidos", 400)
 
   const { inspecao_id, respostas } = parsed.data
 
