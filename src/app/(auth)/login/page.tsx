@@ -164,16 +164,27 @@ function LoginForm() {
           </form>
         </div>
 
-        {/* Link recuperar senha */}
-        <p className="text-center text-[12px] text-[#9ca3af] mt-4">
-          Esqueceu a senha?{" "}
-          <a
-            href="/recuperar-senha"
-            className="text-[var(--green-600)] hover:underline"
-          >
-            Recuperar acesso
-          </a>
-        </p>
+        {/* Links secundários */}
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <p className="text-center text-[12px] text-[#9ca3af]">
+            Esqueceu a senha?{" "}
+            <a
+              href="/recuperar-senha"
+              className="text-[var(--green-600)] hover:underline"
+            >
+              Recuperar acesso
+            </a>
+          </p>
+          <p className="text-center text-[12px] text-[#9ca3af]">
+            Não tem conta?{" "}
+            <a
+              href="/cadastro"
+              className="text-[var(--green-600)] hover:underline font-medium"
+            >
+              Criar conta
+            </a>
+          </p>
+        </div>
 
       </div>
     </div>
