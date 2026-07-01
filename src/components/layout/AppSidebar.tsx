@@ -15,12 +15,20 @@ import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
 // ─── Nav items (same order as BottomNav) ──────────────────────────────────────
-const NAV_ITEMS = [
+interface NavItem {
+  key:    string
+  label:  string
+  href:   string
+  icon:   React.ElementType
+  badge?: boolean
+}
+
+const NAV_ITEMS: NavItem[] = [
   { key: "dashboard",  label: "Dashboard",  href: "/dashboard",  icon: BarChart2 },
   { key: "inspecao",   label: "Inspeção",   href: "/inspecao",   icon: ClipboardCheck },
   { key: "pendencias", label: "Pendências", href: "/pendencias", icon: Bell, badge: true },
   { key: "mais",       label: "Mais",       href: "/mais",       icon: MoreHorizontal },
-] as const
+]
 
 const ROLE_LABELS: Record<string, string> = {
   admin:    "Administrador",
