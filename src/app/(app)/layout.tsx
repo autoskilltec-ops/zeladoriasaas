@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { TopBar } from "@/components/layout/TopBar"
 import { BottomNav } from "@/components/layout/BottomNav"
+import { AppSidebar } from "@/components/layout/AppSidebar"
 
 export default async function AppLayout({
   children,
@@ -14,38 +15,54 @@ export default async function AppLayout({
   // Middleware já redireciona, mas esta verificação serve como defesa em profundidade
   if (!user) redirect("/login")
 
-  // Conta pendências abertas do usuário para o badge do BottomNav
-  const { count: pendingCount } = await supabase
-    .from("nao_conformidades")
-    .select("id", { count: "exact", head: true })
-    .eq("responsavel_id", user.id)
-    .eq("status", "aberta")
+  // Carrega pendências e perfil do usuário em paralelo
+  const [pendingResult, profileResult] = await Promise.all([
+    supabase
+      .from("nao_conformidades")
+      .select("id", { count: "exact", head: true })
+      .eq("responsavel_id", user.id)
+      .eq("status", "aberta"),
+    supabase
+      .from("usuarios")
+      .select("nome, role")
+      .eq("id", user.id)
+      .single(),
+  ])
+
+  const pendingCount = pendingResult.count ?? 0
+  const profile      = profileResult.data
 
   return (
     /*
-     * Mobile  (< lg): coluna única, TopBar fixa no topo, BottomNav fixo embaixo
-     * Desktop (≥ lg): sidebar substituirá o BottomNav (implementar em fase futura)
-     *                 max-w + centralização garantem legibilidade em telas largas
+     * Mobile  (< 900px): coluna única — TopBar fixa no topo, BottomNav fixo embaixo
+     * Desktop (≥ 900px): linha — AppSidebar fixa à esquerda + coluna de conteúdo
+     *                    TopBar e BottomNav ocultados via CSS no breakpoint 900px
      */
-    <div className="flex flex-col min-h-screen bg-[var(--bg)]">
-      {/* TopBar — sticky, lê rota via usePathname internamente */}
-      <TopBar />
+    <div className="flex flex-col min-[900px]:flex-row min-h-screen bg-[var(--bg)]">
 
-      {/* Área de conteúdo principal */}
-      <main
-        className={[
-          "flex-1",
-          // Mobile: padding inferior para não ficar atrás do BottomNav
-          "pb-[calc(64px+env(safe-area-inset-bottom))]",
-          // Desktop: sem padding inferior, conteúdo centralizado
-          "lg:pb-6 lg:pt-4 lg:px-8 lg:max-w-5xl lg:mx-auto lg:w-full",
-        ].join(" ")}
-      >
-        {children}
-      </main>
+      {/* Sidebar — oculta em mobile via CSS (.app-sidebar { display: none }) */}
+      <AppSidebar
+        pendingCount={pendingCount}
+        userName={profile?.nome ?? user.email?.split("@")[0] ?? "Usuário"}
+        userEmail={user.email ?? ""}
+        userRole={profile?.role ?? "inspetor"}
+      />
 
-      {/* BottomNav — oculto em lg+ via CSS (.bottom-nav { display:none } no breakpoint) */}
-      <BottomNav pendingCount={pendingCount ?? 0} />
+      {/* Coluna de conteúdo (sempre visível) */}
+      <div className="flex flex-col flex-1 min-w-0 min-h-screen">
+
+        {/* TopBar — oculta em desktop via CSS */}
+        <TopBar />
+
+        {/* Conteúdo principal */}
+        <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom))] min-[900px]:pb-6">
+          {children}
+        </main>
+
+        {/* BottomNav — oculta em desktop via CSS */}
+        <BottomNav pendingCount={pendingCount} />
+      </div>
+
     </div>
   )
 }
