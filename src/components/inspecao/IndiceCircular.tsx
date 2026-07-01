@@ -21,19 +21,19 @@ function classificar(value: number, hasData: boolean): Cl {
   }
   if (value >= 90) return {
     label: "Excelente",
-    textColor:   "#237a3c",
-    strokeColor: "#3dbf65",
-    trackColor:  "#c8f0d3",
-    bgColor:     "#edfaf2",
-    borderColor: "#c8f0d3",
+    textColor:   "var(--forest-700)",
+    strokeColor: "var(--forest-600)",
+    trackColor:  "var(--sage-100)",
+    bgColor:     "var(--sage-100)",
+    borderColor: "rgba(42,112,72,.20)",
   }
   if (value >= 75) return {
     label: "Bom",
-    textColor:   "#2e9e50",
+    textColor:   "var(--forest-600)",
     strokeColor: "#6dd98a",
-    trackColor:  "#c8f0d3",
-    bgColor:     "#edfaf2",
-    borderColor: "#c8f0d3",
+    trackColor:  "var(--sage-100)",
+    bgColor:     "var(--sage-100)",
+    borderColor: "rgba(42,112,72,.15)",
   }
   if (value >= 60) return {
     label: "Regular",
@@ -45,11 +45,11 @@ function classificar(value: number, hasData: boolean): Cl {
   }
   return {
     label: "Insatisfatório",
-    textColor:   "#ef4444",
+    textColor:   "var(--danger)",
     strokeColor: "#f87171",
     trackColor:  "#fecaca",
-    bgColor:     "#fef2f2",
-    borderColor: "#fecaca",
+    bgColor:     "#fdf0ef",
+    borderColor: "rgba(198,71,60,.20)",
   }
 }
 

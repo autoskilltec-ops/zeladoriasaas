@@ -36,8 +36,8 @@ export function StarRating({ value, onChange, readonly = false }: StarRatingProp
             <Star
               size={20}
               className="star-icon"
-              fill={filled ? "#f5a623" : "none"}
-              color={filled ? "#f5a623" : "#e5e7eb"}
+              fill={filled ? "var(--gold-600)" : "none"}
+              color={filled ? "var(--gold-600)" : "var(--line)"}
               strokeWidth={filled ? 0 : 1.5}
               aria-hidden
             />

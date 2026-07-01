@@ -35,7 +35,7 @@ export default function RecuperarSenhaPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f2f4f3] px-4 py-8">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-8">
         <div className="w-full max-w-[360px] text-center">
           <div className="flex justify-center mb-5">
             <div className="w-[64px] h-[64px] rounded-full flex items-center justify-center" style={{ background: "var(--green-50)", border: "1.5px solid var(--green-100)" }}>
@@ -57,7 +57,7 @@ export default function RecuperarSenhaPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f2f4f3] px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-8">
       <div className="w-full max-w-[360px]">
 
         <div className="flex flex-col items-center mb-8">

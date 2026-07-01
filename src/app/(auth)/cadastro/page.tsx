@@ -66,7 +66,7 @@ export default function CadastroPage() {
     passStrong
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f2f4f3] px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-8">
       <div className="w-full max-w-[380px]">
 
         <div className="flex flex-col items-center mb-8">

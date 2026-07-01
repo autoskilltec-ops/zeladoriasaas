@@ -50,7 +50,7 @@ function LoginForm() {
   const canSubmit = email.trim().length > 0 && password.length >= 6
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f2f4f3] px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4 py-8">
       <div className="w-full max-w-[360px]">
 
         {/* Identidade visual */}

@@ -27,7 +27,7 @@ export default async function AppLayout({
      * Desktop (≥ lg): sidebar substituirá o BottomNav (implementar em fase futura)
      *                 max-w + centralização garantem legibilidade em telas largas
      */
-    <div className="flex flex-col min-h-screen bg-[#f2f4f3]">
+    <div className="flex flex-col min-h-screen bg-[var(--bg)]">
       {/* TopBar — sticky, lê rota via usePathname internamente */}
       <TopBar />
 
