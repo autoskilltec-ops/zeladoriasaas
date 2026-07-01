@@ -139,7 +139,7 @@ export async function middleware(request: NextRequest) {
 
   if (user && isPublic && pathname !== "/atualizar-senha") {
     const url = request.nextUrl.clone()
-    url.pathname = "/inspecao"
+    url.pathname = "/dashboard"
     return NextResponse.redirect(url)
   }
 

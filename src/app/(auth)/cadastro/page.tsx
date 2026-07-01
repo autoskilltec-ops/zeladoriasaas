@@ -51,7 +51,7 @@ export default function CadastroPage() {
       return
     }
 
-    router.push("/inspecao")
+    router.push("/dashboard")
     router.refresh()
   }
 

@@ -3,9 +3,9 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
+  BarChart2,
   ClipboardCheck,
   Bell,
-  BarChart2,
   MoreHorizontal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,9 +19,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { key: "dashboard",  label: "Dashboard",  href: "/dashboard",  icon: BarChart2 },
   { key: "inspecao",   label: "Inspeção",   href: "/inspecao",   icon: ClipboardCheck },
   { key: "pendencias", label: "Pendências", href: "/pendencias", icon: Bell, badge: true },
-  { key: "dashboard",  label: "Dashboard",  href: "/dashboard",  icon: BarChart2 },
   { key: "mais",       label: "Mais",       href: "/mais",       icon: MoreHorizontal },
 ]
 
@@ -48,7 +48,15 @@ export function BottomNav({ pendingCount = 0 }: BottomNavProps) {
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
           >
-            <span className="relative">
+            <span className="relative flex items-center justify-center">
+              {/* Badge sage-100 por trás do ícone ativo */}
+              {isActive && (
+                <span
+                  className="absolute -inset-x-2.5 -inset-y-1 rounded-[10px]"
+                  style={{ background: "var(--sage-100)" }}
+                  aria-hidden
+                />
+              )}
               <Icon
                 size={22}
                 strokeWidth={isActive ? 2.2 : 1.8}

@@ -41,8 +41,8 @@ function LoginForm() {
       return
     }
 
-    // Redireciona para a página que o usuário tentava acessar (ou /inspecao)
-    const next = searchParams.get("next") ?? "/inspecao"
+    // Redireciona para a página que o usuário tentava acessar (ou /dashboard)
+    const next = searchParams.get("next") ?? "/dashboard"
     router.push(next)
     router.refresh()
   }
