@@ -210,10 +210,9 @@ export default function NovaInspecaoPage() {
   const [loadingZeladores, setLoadingZeladores] = useState(false)
   const [submitError,      setSubmitError]      = useState<string | null>(null)
   const [photos, setPhotos] = useState<{
-    situacao:  File | null
-    corretiva: File | null
-    final:     File | null
-  }>({ situacao: null, corretiva: null, final: null })
+    situacao: File | null
+    final:    File | null
+  }>({ situacao: null, final: null })
 
   const {
     register,
@@ -509,12 +508,6 @@ export default function NovaInspecaoPage() {
                 subtitle="Foto da condição no momento da chegada"
                 file={photos.situacao}
                 onChange={(f) => setPhotos((p) => ({ ...p, situacao: f }))}
-              />
-              <PhotoSlot
-                label="Ação corretiva"
-                subtitle="Foto durante ou após a intervenção"
-                file={photos.corretiva}
-                onChange={(f) => setPhotos((p) => ({ ...p, corretiva: f }))}
               />
               <PhotoSlot
                 label="Foto final"
