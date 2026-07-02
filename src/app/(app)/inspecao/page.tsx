@@ -215,6 +215,16 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
   const [formErr,    setFormErr]    = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
+  async function reload() {
+    const { data, error } = await supabase
+      .from("locais")
+      .select("id, nome, bloco, andar, descricao")
+      .eq("ativo", true)
+      .order("nome")
+    if (error) { console.error("Erro ao recarregar locais:", error); return }
+    onChange(data ?? [])
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nome.trim()) { setFormErr("Informe o nome do local"); return }
@@ -223,7 +233,7 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
     setSaving(true)
     setFormErr(null)
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("locais")
       .insert({
         nome:           form.nome.trim(),
@@ -232,13 +242,16 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
         organizacao_id: orgId,
         ativo:          true,
       })
-      .select("id, nome, bloco, andar, descricao")
-      .single()
 
+    if (error) {
+      console.error("Erro ao adicionar local:", error)
+      setSaving(false)
+      setFormErr("Erro ao adicionar local: " + error.message)
+      return
+    }
+
+    await reload()
     setSaving(false)
-    if (error) { setFormErr("Erro ao adicionar local: " + error.message); return }
-
-    onChange([...locais, data as Local].sort((a, b) => a.nome.localeCompare(b.nome)))
     setForm({ nome: "", bloco: "", andar: "" })
     setShowAdd(false)
   }
@@ -246,8 +259,14 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
   async function handleRemove(id: string) {
     setRemovingId(id)
     const { error } = await supabase.from("locais").update({ ativo: false }).eq("id", id)
+    if (error) {
+      console.error("Erro ao remover local:", error)
+      setFormErr("Erro ao remover local: " + error.message)
+      setRemovingId(null)
+      return
+    }
+    await reload()
     setRemovingId(null)
-    if (!error) onChange(locais.filter((l) => l.id !== id))
   }
 
   return (
@@ -286,6 +305,8 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
             </div>
           ))}
 
+          {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
+
           {showAdd ? (
             <form onSubmit={handleAdd} className="pt-2 border-t border-[#e0e8e2] space-y-2">
               <input
@@ -311,7 +332,6 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
                   className={cn("field-input", form.andar && "has-value")}
                 />
               </div>
-              {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -333,7 +353,7 @@ function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
           ) : (
             <button
               type="button"
-              onClick={() => setShowAdd(true)}
+              onClick={() => { setShowAdd(true); setFormErr(null) }}
               className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-[var(--green-100)] text-[12px] text-[var(--green-700)]"
             >
               <Plus size={13} aria-hidden /> Novo local
@@ -363,6 +383,17 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
   const [formErr,    setFormErr]    = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
+  async function reload() {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("id, nome, email, role, ativo")
+      .in("role", ["admin", "inspetor"])
+      .eq("ativo", true)
+      .order("nome")
+    if (error) { console.error("Erro ao recarregar responsáveis:", error); return }
+    onChange(data ?? [])
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nome.trim() || !form.email.trim()) {
@@ -389,22 +420,24 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
           role:  "inspetor",
         }),
       })
-    } catch {
+    } catch (err) {
+      console.error("Falha de rede ao adicionar responsável:", err)
       setSaving(false)
       setFormErr("Falha de conexão. Tente novamente.")
       return
     }
 
     const json = await res.json()
-    setSaving(false)
 
     if (!res.ok || json.error) {
+      console.error("Erro ao adicionar responsável:", json.error)
+      setSaving(false)
       setFormErr(json?.error?.message ?? "Erro ao adicionar responsável")
       return
     }
 
-    const novo = json.data.usuario as Usuario
-    onChange([...inspetores, novo].sort((a, b) => a.nome.localeCompare(b.nome)))
+    await reload()
+    setSaving(false)
     setForm({ nome: "", email: "", senha: "" })
     setShowAdd(false)
   }
@@ -413,8 +446,14 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
     if (id === currentUserId) return
     setRemovingId(id)
     const { error } = await supabase.from("usuarios").update({ ativo: false }).eq("id", id)
+    if (error) {
+      console.error("Erro ao remover responsável:", error)
+      setFormErr("Erro ao remover responsável: " + error.message)
+      setRemovingId(null)
+      return
+    }
+    await reload()
     setRemovingId(null)
-    if (!error) onChange(inspetores.filter((u) => u.id !== id))
   }
 
   return (
@@ -452,6 +491,8 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
             )
           })}
 
+          {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
+
           {showAdd ? (
             <form onSubmit={handleAdd} className="pt-2 border-t border-[#e0e8e2] space-y-2">
               <input
@@ -476,7 +517,6 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
                 className={cn("field-input", form.senha && "has-value")}
               />
               <p className="text-[10px] text-[#9ca3af]">Mínimo 8 caracteres, com letras e números.</p>
-              {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -498,7 +538,7 @@ function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManage
           ) : (
             <button
               type="button"
-              onClick={() => setShowAdd(true)}
+              onClick={() => { setShowAdd(true); setFormErr(null) }}
               className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-[var(--green-100)] text-[12px] text-[var(--green-700)]"
             >
               <Plus size={13} aria-hidden /> Novo responsável
