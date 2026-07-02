@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Camera, X, Calendar, MapPin, User, Users, Plus, Trash2, Settings2 } from "lucide-react"
+import { Camera, X, Calendar, MapPin, User, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { useInspecaoStore } from "@/store/inspecaoStore"
+import { EditableSelect } from "@/components/inspecao/EditableSelect"
 import type { Local, Usuario } from "@/types/app"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -197,359 +198,6 @@ function PhotoSlot({ label, subtitle, file, onChange }: PhotoSlotProps) {
   )
 }
 
-// ─── LocalManager (admin) ──────────────────────────────────────────────────────
-// Permite ao admin adicionar ou remover locais direto no step 1, sem sair do fluxo.
-interface LocalManagerProps {
-  locais:   Local[]
-  orgId:    string | null
-  onChange: (locais: Local[]) => void
-}
-
-function LocalManager({ locais, orgId, onChange }: LocalManagerProps) {
-  const supabase = useRef(createClient()).current
-
-  const [open,       setOpen]       = useState(false)
-  const [showAdd,    setShowAdd]    = useState(false)
-  const [form,       setForm]       = useState({ nome: "", bloco: "", andar: "" })
-  const [saving,     setSaving]     = useState(false)
-  const [formErr,    setFormErr]    = useState<string | null>(null)
-  const [removingId, setRemovingId] = useState<string | null>(null)
-
-  async function reload() {
-    const { data, error } = await supabase
-      .from("locais")
-      .select("id, nome, bloco, andar, descricao")
-      .eq("ativo", true)
-      .order("nome")
-    if (error) { console.error("Erro ao recarregar locais:", error); return }
-    onChange(data ?? [])
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.nome.trim()) { setFormErr("Informe o nome do local"); return }
-    if (!orgId) { setFormErr("Não foi possível identificar sua organização"); return }
-
-    setSaving(true)
-    setFormErr(null)
-
-    const { error } = await supabase
-      .from("locais")
-      .insert({
-        nome:           form.nome.trim(),
-        bloco:          form.bloco.trim() || null,
-        andar:          form.andar.trim() || null,
-        organizacao_id: orgId,
-        ativo:          true,
-      })
-
-    if (error) {
-      console.error("Erro ao adicionar local:", error)
-      setSaving(false)
-      setFormErr("Erro ao adicionar local: " + error.message)
-      return
-    }
-
-    await reload()
-    setSaving(false)
-    setForm({ nome: "", bloco: "", andar: "" })
-    setShowAdd(false)
-  }
-
-  async function handleRemove(id: string) {
-    setRemovingId(id)
-    const { error } = await supabase.from("locais").update({ ativo: false }).eq("id", id)
-    if (error) {
-      console.error("Erro ao remover local:", error)
-      setFormErr("Erro ao remover local: " + error.message)
-      setRemovingId(null)
-      return
-    }
-    await reload()
-    setRemovingId(null)
-  }
-
-  return (
-    <div className="mt-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-[11px] font-medium text-[var(--green-600)] hover:text-[var(--green-700)] flex items-center gap-1"
-      >
-        <Settings2 size={11} aria-hidden />
-        {open ? "Fechar gerenciamento de locais" : "Gerenciar locais"}
-      </button>
-
-      {open && (
-        <div className="mt-2 p-2.5 rounded-lg border border-[#e0e8e2] bg-[#f8faf9] space-y-2">
-          {locais.length === 0 && (
-            <p className="text-[11px] text-[#9ca3af]">Nenhum local cadastrado.</p>
-          )}
-          {locais.map((l) => (
-            <div key={l.id} className="flex items-center justify-between gap-2 text-[12px] text-[#374151]">
-              <span className="truncate">
-                {l.nome}
-                {l.bloco ? ` — ${l.bloco}` : ""}
-                {l.andar ? ` / ${l.andar}` : ""}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleRemove(l.id)}
-                disabled={removingId === l.id}
-                className="shrink-0 text-[#ef4444] hover:text-[#b91c1c] disabled:opacity-50"
-                aria-label={`Remover ${l.nome}`}
-                title="Remover local"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-
-          {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
-
-          {showAdd ? (
-            <form onSubmit={handleAdd} className="pt-2 border-t border-[#e0e8e2] space-y-2">
-              <input
-                type="text"
-                placeholder="Nome do local *"
-                value={form.nome}
-                onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
-                className={cn("field-input", form.nome && "has-value")}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  placeholder="Bloco"
-                  value={form.bloco}
-                  onChange={(e) => setForm((p) => ({ ...p, bloco: e.target.value }))}
-                  className={cn("field-input", form.bloco && "has-value")}
-                />
-                <input
-                  type="text"
-                  placeholder="Andar"
-                  value={form.andar}
-                  onChange={(e) => setForm((p) => ({ ...p, andar: e.target.value }))}
-                  className={cn("field-input", form.andar && "has-value")}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowAdd(false); setFormErr(null) }}
-                  className="flex-1 py-1.5 rounded-lg border border-[#e0e8e2] text-[12px] text-[#6b7280]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-1.5 rounded-lg text-[12px] text-white"
-                  style={{ background: "var(--green-700)" }}
-                >
-                  {saving ? "Salvando…" : "Adicionar"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setShowAdd(true); setFormErr(null) }}
-              className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-[var(--green-100)] text-[12px] text-[var(--green-700)]"
-            >
-              <Plus size={13} aria-hidden /> Novo local
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── InspetorManager (admin) ────────────────────────────────────────────────────
-// Permite ao admin adicionar ou remover responsáveis (inspetores) direto no step 1.
-interface InspetorManagerProps {
-  inspetores:    Usuario[]
-  currentUserId: string | null
-  onChange:      (inspetores: Usuario[]) => void
-}
-
-function InspetorManager({ inspetores, currentUserId, onChange }: InspetorManagerProps) {
-  const supabase = useRef(createClient()).current
-
-  const [open,       setOpen]       = useState(false)
-  const [showAdd,    setShowAdd]    = useState(false)
-  const [form,       setForm]       = useState({ nome: "", email: "", senha: "" })
-  const [saving,     setSaving]     = useState(false)
-  const [formErr,    setFormErr]    = useState<string | null>(null)
-  const [removingId, setRemovingId] = useState<string | null>(null)
-
-  async function reload() {
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("id, nome, email, role, ativo")
-      .in("role", ["admin", "inspetor"])
-      .eq("ativo", true)
-      .order("nome")
-    if (error) { console.error("Erro ao recarregar responsáveis:", error); return }
-    onChange(data ?? [])
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.nome.trim() || !form.email.trim()) {
-      setFormErr("Preencha nome e e-mail")
-      return
-    }
-    if (form.senha.length < 8 || !/[a-zA-Z]/.test(form.senha) || !/[0-9]/.test(form.senha)) {
-      setFormErr("Senha deve ter ao menos 8 caracteres com letras e números")
-      return
-    }
-
-    setSaving(true)
-    setFormErr(null)
-
-    let res: Response
-    try {
-      res = await fetch("/api/admin/usuarios", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          nome:  form.nome.trim(),
-          email: form.email.trim(),
-          senha: form.senha,
-          role:  "inspetor",
-        }),
-      })
-    } catch (err) {
-      console.error("Falha de rede ao adicionar responsável:", err)
-      setSaving(false)
-      setFormErr("Falha de conexão. Tente novamente.")
-      return
-    }
-
-    const json = await res.json()
-
-    if (!res.ok || json.error) {
-      console.error("Erro ao adicionar responsável:", json.error)
-      setSaving(false)
-      setFormErr(json?.error?.message ?? "Erro ao adicionar responsável")
-      return
-    }
-
-    await reload()
-    setSaving(false)
-    setForm({ nome: "", email: "", senha: "" })
-    setShowAdd(false)
-  }
-
-  async function handleRemove(id: string) {
-    if (id === currentUserId) return
-    setRemovingId(id)
-    const { error } = await supabase.from("usuarios").update({ ativo: false }).eq("id", id)
-    if (error) {
-      console.error("Erro ao remover responsável:", error)
-      setFormErr("Erro ao remover responsável: " + error.message)
-      setRemovingId(null)
-      return
-    }
-    await reload()
-    setRemovingId(null)
-  }
-
-  return (
-    <div className="mt-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-[11px] font-medium text-[var(--green-600)] hover:text-[var(--green-700)] flex items-center gap-1"
-      >
-        <Settings2 size={11} aria-hidden />
-        {open ? "Fechar gerenciamento de responsáveis" : "Gerenciar responsáveis"}
-      </button>
-
-      {open && (
-        <div className="mt-2 p-2.5 rounded-lg border border-[#e0e8e2] bg-[#f8faf9] space-y-2">
-          {inspetores.length === 0 && (
-            <p className="text-[11px] text-[#9ca3af]">Nenhum responsável cadastrado.</p>
-          )}
-          {inspetores.map((u) => {
-            const isSelf = u.id === currentUserId
-            return (
-              <div key={u.id} className="flex items-center justify-between gap-2 text-[12px] text-[#374151]">
-                <span className="truncate">{u.nome}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(u.id)}
-                  disabled={removingId === u.id || isSelf}
-                  className="shrink-0 text-[#ef4444] hover:text-[#b91c1c] disabled:opacity-50 disabled:hover:text-[#ef4444]"
-                  aria-label={`Remover ${u.nome}`}
-                  title={isSelf ? "Você não pode remover a si mesmo" : "Remover responsável"}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            )
-          })}
-
-          {formErr && <p className="text-[11px] text-[#ef4444]">{formErr}</p>}
-
-          {showAdd ? (
-            <form onSubmit={handleAdd} className="pt-2 border-t border-[#e0e8e2] space-y-2">
-              <input
-                type="text"
-                placeholder="Nome *"
-                value={form.nome}
-                onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
-                className={cn("field-input", form.nome && "has-value")}
-              />
-              <input
-                type="email"
-                placeholder="E-mail *"
-                value={form.email}
-                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                className={cn("field-input", form.email && "has-value")}
-              />
-              <input
-                type="password"
-                placeholder="Senha inicial *"
-                value={form.senha}
-                onChange={(e) => setForm((p) => ({ ...p, senha: e.target.value }))}
-                className={cn("field-input", form.senha && "has-value")}
-              />
-              <p className="text-[10px] text-[#9ca3af]">Mínimo 8 caracteres, com letras e números.</p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowAdd(false); setFormErr(null) }}
-                  className="flex-1 py-1.5 rounded-lg border border-[#e0e8e2] text-[12px] text-[#6b7280]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-1.5 rounded-lg text-[12px] text-white"
-                  style={{ background: "var(--green-700)" }}
-                >
-                  {saving ? "Salvando…" : "Adicionar"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setShowAdd(true); setFormErr(null) }}
-              className="w-full flex items-center justify-center gap-1 py-1.5 rounded-lg border border-dashed border-[var(--green-100)] text-[12px] text-[var(--green-700)]"
-            >
-              <Plus size={13} aria-hidden /> Novo responsável
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function NovaInspecaoPage() {
   const router   = useRouter()
@@ -659,6 +307,57 @@ export default function NovaInspecaoPage() {
       })
   }, [localId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Gerenciamento inline de locais (admin) ────────────────────────────────
+  async function handleAddLocal(nome: string) {
+    if (!orgId) throw new Error("Não foi possível identificar sua organização")
+
+    const { data, error } = await supabase
+      .from("locais")
+      .insert({ nome, organizacao_id: orgId, ativo: true })
+      .select("id, nome, bloco, andar, descricao")
+      .single()
+
+    if (error || !data) throw new Error(error?.message ?? "Erro ao adicionar local")
+
+    setLocais((prev) => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+    return { id: data.id }
+  }
+
+  async function handleRemoveLocal(id: string) {
+    const { error } = await supabase.from("locais").update({ ativo: false }).eq("id", id)
+    if (error) throw new Error(error.message)
+    setLocais((prev) => prev.filter((l) => l.id !== id))
+  }
+
+  // ── Gerenciamento inline de responsáveis (admin) ──────────────────────────
+  async function handleAddResponsavel(nome: string) {
+    let res: Response
+    try {
+      res = await fetch("/api/admin/usuarios", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ nome, role: "inspetor" }),
+      })
+    } catch {
+      throw new Error("Falha de conexão. Tente novamente.")
+    }
+
+    const json = await res.json()
+    if (!res.ok || json.error) {
+      throw new Error(json?.error?.message ?? "Erro ao adicionar responsável")
+    }
+
+    const usuario = json.data.usuario as Usuario
+    setInspetores((prev) => [...prev, usuario].sort((a, b) => a.nome.localeCompare(b.nome)))
+    return { id: usuario.id }
+  }
+
+  async function handleRemoveResponsavel(id: string) {
+    const { error } = await supabase.from("usuarios").update({ ativo: false }).eq("id", id)
+    if (error) throw new Error(error.message)
+    setInspetores((prev) => prev.filter((u) => u.id !== id))
+  }
+
   // ── Submit ───────────────────────────────────────────────────────────────
   async function onSubmit(values: FormValues) {
     setSubmitError(null)
@@ -738,24 +437,21 @@ export default function NovaInspecaoPage() {
                 error={errors.local_id?.message}
                 icon={<MapPin size={11} />}
               >
-                <select
-                  className={cn(
-                    "field-input",
-                    localId && "has-value",
-                    errors.local_id && "!border-[#ef4444] !bg-[#fef2f2]"
-                  )}
-                  {...register("local_id")}
-                >
-                  <option value="">Selecione o local</option>
-                  {locais.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.nome}
-                      {l.bloco ? ` — ${l.bloco}` : ""}
-                      {l.andar ? ` / ${l.andar}` : ""}
-                    </option>
-                  ))}
-                </select>
-                {isAdmin && <LocalManager locais={locais} orgId={orgId} onChange={setLocais} />}
+                <EditableSelect
+                  value={localId}
+                  onChange={(id) => setValue("local_id", id, { shouldValidate: true })}
+                  options={locais.map((l) => ({
+                    id:    l.id,
+                    label: `${l.nome}${l.bloco ? ` — ${l.bloco}` : ""}${l.andar ? ` / ${l.andar}` : ""}`,
+                  }))}
+                  placeholder="Selecione o local"
+                  addPlaceholder="Nome do novo local"
+                  emptyText="Nenhum local cadastrado"
+                  canManage={isAdmin}
+                  hasError={!!errors.local_id}
+                  onAdd={handleAddLocal}
+                  onRemove={handleRemoveLocal}
+                />
               </FieldWrapper>
 
               {/* Responsável pela inspeção */}
@@ -765,26 +461,19 @@ export default function NovaInspecaoPage() {
                 error={errors.inspetor_id?.message}
                 icon={<User size={11} />}
               >
-                <select
-                  className={cn(
-                    "field-input",
-                    watch("inspetor_id") && "has-value",
-                    errors.inspetor_id && "!border-[#ef4444] !bg-[#fef2f2]"
-                  )}
-                  {...register("inspetor_id")}
-                >
-                  <option value="">Selecione o responsável</option>
-                  {inspetores.map((u) => (
-                    <option key={u.id} value={u.id}>{u.nome}</option>
-                  ))}
-                </select>
-                {isAdmin && (
-                  <InspetorManager
-                    inspetores={inspetores}
-                    currentUserId={currentUserId}
-                    onChange={setInspetores}
-                  />
-                )}
+                <EditableSelect
+                  value={watch("inspetor_id")}
+                  onChange={(id) => setValue("inspetor_id", id, { shouldValidate: true })}
+                  options={inspetores.map((u) => ({ id: u.id, label: u.nome }))}
+                  placeholder="Selecione o responsável"
+                  addPlaceholder="Nome do responsável"
+                  emptyText="Nenhum responsável cadastrado"
+                  canManage={isAdmin}
+                  hasError={!!errors.inspetor_id}
+                  disabledRemoveIds={currentUserId ? [currentUserId] : []}
+                  onAdd={handleAddResponsavel}
+                  onRemove={handleRemoveResponsavel}
+                />
               </FieldWrapper>
 
               {/* Profissional lotado no local */}
